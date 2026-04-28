@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Patent Navi MVP Prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1d2433;
+        --muted: #667085;
+        --line: #d8dee8;
+        --panel: #ffffff;
+        --soft: #f4f7fb;
+        --accent: #0f766e;
+        --accent-2: #b42318;
+        --accent-3: #475467;
+        --focus: #155eef;
+        --mark: #f2a900;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+          "Yu Gothic", "Meiryo", sans-serif;
+        color: var(--ink);
+        background: #eef2f6;
+        line-height: 1.6;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        min-height: 40px;
+        padding: 8px 12px;
+      }
+
+      button:hover {
+        border-color: #98a2b3;
+        background: #f9fafb;
+      }
+
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+        font-weight: 700;
+      }
+
+      button.primary:hover {
+        background: #0b625b;
+      }
+
+      button.danger {
+        border-color: #fecdca;
+        color: var(--accent-2);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+      }
+
+      .topbar {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 220px;
+      }
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background:
+          linear-gradient(135deg, transparent 35%, rgba(255, 255, 255, 0.34) 36% 46%, transparent 47%),
+          #0f766e;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.2;
+      }
+
+      .brand span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      nav a {
+        color: var(--accent-3);
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 8px;
+        border-radius: 6px;
+      }
+
+      nav a:hover {
+        color: var(--ink);
+        background: #f2f4f7;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 22px 20px 48px;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+      }
+
+      .panel-header {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .panel-header h1,
+      .panel-header h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .panel-header p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .panel-body {
+        padding: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+
+      label {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      textarea,
+      input {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 10px 11px;
+      }
+
+      textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+
+      textarea:focus,
+      input:focus,
+      button:focus {
+        outline: 3px solid rgba(21, 94, 239, 0.14);
+        border-color: var(--focus);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .notice {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border: 1px solid #fedf89;
+        background: #fffbeb;
+        border-radius: 6px;
+        color: #7a4b00;
+        font-size: 12px;
+      }
+
+      .results {
+        display: grid;
+        gap: 18px;
+      }
+
+      .empty {
+        min-height: 360px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: var(--muted);
+        background:
+          linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+          linear-gradient(rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+          #fff;
+        background-size: 28px 28px;
+      }
+
+      .empty-inner {
+        max-width: 460px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 6px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px 0;
+        background: #fff;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .tab {
+        border-bottom: 0;
+        border-radius: 6px 6px 0 0;
+        min-height: 34px;
+        padding: 6px 12px;
+      }
+
+      .tab.active {
+        border-color: var(--line);
+        background: var(--soft);
+        font-weight: 700;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 12px;
+        background: #fbfcfe;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 22px;
+        line-height: 1.3;
+      }
+
+      .tag-list,
+      .link-list,
+      .check-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .tag {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .tag b {
+        display: block;
+      }
+
+      .tag small {
+        display: block;
+        color: var(--muted);
+      }
+
+      .badge {
+        align-self: start;
+        border: 1px solid #b2ddff;
+        color: #175cd3;
+        background: #eff8ff;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .badge.warn {
+        border-color: #fedf89;
+        color: #93370d;
+        background: #fffaeb;
+      }
+
+      .badge.neutral {
+        border-color: #d0d5dd;
+        color: #475467;
+        background: #f9fafb;
+      }
+
+      .link-card {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .link-card h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+
+      .query {
+        margin: 8px 0;
+        padding: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        color: #334155;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .check-item {
+        display: grid;
+        grid-template-columns: 20px 1fr;
+        gap: 8px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .check-item input {
+        width: 16px;
+        height: 16px;
+        margin-top: 4px;
+      }
+
+      .analysis-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        background: #f8fafc;
+      }
+
+      .small-title {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        background: #101828;
+        color: #fff;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: 0.18s ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 920px) {
+        .workbench,
+        .analysis-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        nav {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="topbar">
+        <div class="brand" aria-label="Patent Navi">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <strong>Patent Navi</strong>
+            <span>事業アイデアから特許調査の入口へ</span>
+          </div>
+        </div>
+        <nav aria-label="ページ内ナビゲーション">
+          <a href="#input">入力</a>
+          <a href="#plan">調査プラン</a>
+          <a href="#analysis">分析</a>
+          <a href="../docs/requirements.md">要件定義</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="workbench">
+        <section id="input" class="panel">
+          <div class="panel-header">
+            <h1>調査テーマ</h1>
+            <p>事業・製品アイデアを入力すると、検索語、調査軸、外部検索リンクを作成します。</p>
+          </div>
+          <div class="panel-body">
+            <form id="ideaForm">
+              <div class="field">
+                <label for="functionSummary">機能概要</label>
+                <textarea id="functionSummary" required>スマートフォンのカメラ映像から作業者の危険姿勢を検出して通知する</textarea>
+                <span class="hint">何を入力し、何を処理し、何を出力するかを書きます。</span>
+              </div>
+
+              <div class="field">
+                <label for="problemToSolve">解決したい課題</label>
+                <textarea id="problemToSolve">作業現場で転倒や腰痛につながる姿勢を早期に警告したい</textarea>
+              </div>
+
+              <div class="field">
+                <label for="usageScene">利用シーン・業界</label>
+                <input id="usageScene" value="建設現場、物流倉庫、介護施設" />
+              </div>
+
+              <div class="field">
+                <label for="components">具体的な部品・技術</label>
+                <textarea id="components">カメラ、姿勢推定AI、スマートフォン通知、振動アラート</textarea>
+              </div>
+
+              <div class="field">
+                <label for="competitors">競合製品・企業</label>
+                <textarea id="competitors">安全管理アプリ、ウェアラブル安全管理サービス</textarea>
+              </div>
+
+              <div class="actions">
+                <button class="primary" type="submit">調査プランを作成</button>
+                <button type="button" id="clearButton">入力をクリア</button>
+              </div>
+
+              <div class="notice">
+                このプロトタイプは調査観点の整理用です。法的判断、鑑定、侵害有無の断定は提供しません。
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section id="plan" class="results">
+          <div id="emptyState" class="panel empty">
+            <div class="empty-inner">
+              <strong>ここに調査プランが表示されます</strong>
+              <p>キーワード、調査軸、検索リンク、確認チェックリストをまとめて確認できます。</p>
+            </div>
+          </div>
+
+          <div id="resultPanel" class="panel" hidden>
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="overview" type="button">概要</button>
+              <button class="tab" data-tab="keywords" type="button">キーワード</button>
+              <button class="tab" data-tab="links" type="button">検索リンク</button>
+              <button class="tab" data-tab="checklist" type="button">チェック</button>
+            </div>
+
+            <div class="panel-body">
+              <div id="tab-overview" class="tab-panel active"></div>
+              <div id="tab-keywords" class="tab-panel"></div>
+              <div id="tab-links" class="tab-panel"></div>
+              <div id="tab-checklist" class="tab-panel"></div>
+            </div>
+          </div>
+
+          <section id="analysis" class="panel">
+            <div class="panel-header">
+              <h2>特許分析メモ</h2>
+              <p>外部検索で見つけた請求項を貼り付け、構成要素と回避設計案を整理します。</p>
+            </div>
+            <div class="panel-body analysis-layout">
+              <div>
+                <div class="field">
+                  <label for="publicationNumber">公開番号・特許番号</label>
+                  <input id="publicationNumber" placeholder="例: JP2024-000000" />
+                </div>
+                <div class="field">
+                  <label for="assignee">出願人</label>
+                  <input id="assignee" placeholder="例: Example株式会社" />
+                </div>
+                <div class="field">
+                  <label for="claimText">請求項または要約</label>
+                  <textarea id="claimText" style="min-height: 180px">作業者を撮像する撮像手段と、撮像画像から作業者の姿勢を推定する姿勢推定手段と、推定された姿勢が所定の危険条件を満たす場合に警告を出力する通知手段とを備える安全管理システム。</textarea>
+                </div>
+                <div class="actions">
+                  <button type="button" class="primary" id="analyzeButton">この特許を分析する</button>
+                  <button type="button" id="exportButton">Markdown で出力</button>
+                </div>
+              </div>
+              <div id="analysisOutput">
+                <p class="hint">分析結果はここに表示されます。</p>
+              </div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const state = {
+        plan: null,
+        links: [],
+        analysis: null,
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+      function showToast(message) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      function getFormInput() {
+        return {
+          functionSummary: $("#functionSummary").value.trim(),
+          problemToSolve: $("#problemToSolve").value.trim(),
+          usageScene: $("#usageScene").value.trim(),
+          components: $("#components").value.trim(),
+          competitors: $("#competitors").value.trim(),
+        };
+      }
+
+      function buildGooglePatentsUrl(query) {
+        return `https://patents.google.com/?q=${encodeURIComponent(query)}`;
+      }
+
+      function buildEspacenetUrl(query) {
+        return `https://worldwide.espacenet.com/patent/search?q=${encodeURIComponent(query)}`;
+      }
+
+      function buildJPlatPatUrl() {
+        return "https://www.j-platpat.inpit.go.jp/";
+      }
+
+      function generatePlan(input) {
+        const hasCamera = /カメラ|画像|映像|撮像/.test(input.functionSummary + input.components);
+        const hasAi = /AI|推定|検出|認識|解析/.test(input.functionSummary + input.components);
+        const hasAlert = /通知|警告|アラート|報知/.test(input.functionSummary + input.components);
+        const industryTerms = input.usageScene
+          .split(/[、,\n]/)
+          .map((term) => term.trim())
+          .filter(Boolean);
+
+        const keywords = [
+          {
+            term: "姿勢推定",
+            language: "ja",
+            category: "技術語",
+            aliases: ["骨格推定", "人体姿勢推定", "ポーズ推定"],
+            english: ["pose estimation", "human pose estimation"],
+            reason: "画像から人の姿勢を推定する中心技術として検索に使えます。",
+          },
+          {
+            term: "危険姿勢検出",
+            language: "ja",
+            category: "作用語",
+            aliases: ["異常姿勢判定", "危険動作検出", "作業姿勢判定"],
+            english: ["unsafe posture detection", "ergonomic risk detection"],
+            reason: "製品名ではなく、検出する状態や動作から探せます。",
+          },
+          {
+            term: "作業者安全",
+            language: "ja",
+            category: "用途",
+            aliases: ["労働安全", "現場安全", "安全管理"],
+            english: ["worker safety", "worksite safety"],
+            reason: "用途特許や異業種の安全管理技術を拾う軸になります。",
+          },
+        ];
+
+        if (hasCamera) {
+          keywords.push({
+            term: "撮像手段",
+            language: "ja",
+            category: "機能的表現",
+            aliases: ["画像取得手段", "カメラ", "撮影部"],
+            english: ["imaging unit", "image acquisition unit"],
+            reason: "特許ではカメラを広く表す言葉として使われることがあります。",
+          });
+        }
+
+        if (hasAi) {
+          keywords.push({
+            term: "判定手段",
+            language: "ja",
+            category: "機能的表現",
+            aliases: ["推定手段", "検出手段", "識別手段"],
+            english: ["determination unit", "estimation unit", "detection unit"],
+            reason: "AI 処理を機能として広く表現した検索語です。",
+          });
+        }
+
+        if (hasAlert) {
+          keywords.push({
+            term: "報知手段",
+            language: "ja",
+            category: "機能的表現",
+            aliases: ["通知手段", "警告手段", "アラート出力"],
+            english: ["notification unit", "warning unit", "alert output"],
+            reason: "通知・警告に関する特許表現として検索できます。",
+          });
+        }
+
+        const jaQuery = "(姿勢推定 OR 骨格推定 OR 危険姿勢検出) (通知 OR 警告 OR 報知) (作業者 OR 作業現場)";
+        const enQuery = '("pose estimation" OR "human pose estimation") (alert OR notification OR warning) "worker safety"';
+        const functionalQuery = "(撮像手段 OR 画像取得手段) (判定手段 OR 推定手段) (通知手段 OR 報知手段)";
+        const usageQuery = `(姿勢推定 OR 危険姿勢検出) (${industryTerms.slice(0, 3).join(" OR ") || "作業現場"})`;
+
+        return {
+          summary: {
+            title: "カメラ映像による危険姿勢検出と通知",
+            plainDescription: input.functionSummary,
+            assumptions: [
+              "姿勢は画像解析または骨格推定により判定する想定です。",
+              "通知はスマートフォン画面、音、振動のいずれかで行う想定です。",
+            ],
+          },
+          keywords,
+          axes: [
+            {
+              axis: "技術構成",
+              text: "撮像、姿勢推定、危険判定、通知の組み合わせで探す。",
+            },
+            {
+              axis: "課題・効果",
+              text: "転倒防止、腰痛予防、作業安全、早期警告の観点で探す。",
+            },
+            {
+              axis: "用途",
+              text: `${industryTerms.join("、") || "利用業界"} に限定された用途特許を確認する。`,
+            },
+            {
+              axis: "分類観点",
+              text: "J-PlatPat では検索後に監視、画像認識、警報、労働安全に近い FI/F タームを確認する。",
+            },
+          ],
+          queries: [
+            { id: "ja", label: "日本語で広く探す", query: jaQuery, sites: ["google", "jpp"] },
+            { id: "en", label: "英語で海外も探す", query: enQuery, sites: ["google", "espacenet"] },
+            { id: "functional", label: "機能的表現で探す", query: functionalQuery, sites: ["google", "jpp"] },
+            { id: "usage", label: "用途特許を探す", query: usageQuery, sites: ["google", "jpp"] },
+          ],
+          checklist: [
+            "請求項に、撮像、姿勢推定、危険判定、通知の全要素が含まれるか確認する。",
+            "用途が作業現場、介護、物流などに限定されていないか確認する。",
+            "権利状態、存続期間、国を原典で確認する。",
+            "構成要素の削除、置換、処理順序変更で差異を作れるか検討する。",
+            "出願人名の表記ゆれで競合検索を追加する。",
+          ],
+        };
+      }
+
+      function buildLinks(plan) {
+        return plan.queries.flatMap((item) => {
+          const links = [];
+          if (item.sites.includes("google")) {
+            links.push({
+              site: "Google Patents",
+              label: `${item.label} - Google Patents`,
+              url: buildGooglePatentsUrl(item.query),
+              query: item.query,
+              guidance: "技術語、英語、図面確認を含めて広く調べます。",
+            });
+          }
+          if (item.sites.includes("espacenet")) {
+            links.push({
+              site: "Espacenet",
+              label: `${item.label} - Espacenet`,
+              url: buildEspacenetUrl(item.query),
+              query: item.query,
+              guidance: "欧州、米国、中国を含む海外文献の入口として使います。",
+            });
+          }
+          if (item.sites.includes("jpp")) {
+            links.push({
+              site: "J-PlatPat",
+              label: `${item.label} - J-PlatPat`,
+              url: buildJPlatPatUrl(),
+              query: item.query,
+              guidance: "検索式をコピーし、特許・実用新案検索に貼り付けて使います。",
+            });
+          }
+          return links;
+        });
+      }
+
+      function renderPlan() {
+        const { plan, links } = state;
+        $("#emptyState").hidden = true;
+        $("#resultPanel").hidden = false;
+
+        $("#tab-overview").innerHTML = `
+          <div class="summary-grid">
+            <div class="metric"><span>キーワード</span><strong>${plan.keywords.length}</strong></div>
+            <div class="metric"><span>調査軸</span><strong>${plan.axes.length}</strong></div>
+            <div class="metric"><span>検索リンク</span><strong>${links.length}</strong></div>
+          </div>
+          <h3 class="small-title" style="margin-top:16px;">${escapeHtml(plan.summary.title)}</h3>
+          <p>${escapeHtml(plan.summary.plainDescription)}</p>
+          <div class="tag-list">
+            ${plan.axes
+              .map(
+                (axis) => `
+                  <div class="tag">
+                    <div><b>${escapeHtml(axis.axis)}</b><small>${escapeHtml(axis.text)}</small></div>
+                    <span class="badge neutral">調査軸</span>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        `;
+
+        $("#tab-keywords").innerHTML = `
+          <div class="tag-list">
+            ${plan.keywords
+              .map(
+                (keyword) => `
+                  <div class="tag">
+                    <div>
+                      <b>${escapeHtml(keyword.term)}</b>
+                      <small>${escapeHtml(keyword.aliases.join(" / "))}</small>
+                      <small>${escapeHtml(keyword.english.join(" / "))}</small>
+                      <small>${escapeHtml(keyword.reason)}</small>
+                    </div>
+                    <span class="badge">${escapeHtml(keyword.category)}</span>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        `;
+
+        $("#tab-links").innerHTML = `
+          <div class="link-list">
+            ${links
+              .map(
+                (link, index) => `
+                  <div class="link-card">
+                    <h3>${escapeHtml(link.label)}</h3>
+                    <p class="hint">${escapeHtml(link.guidance)}</p>
+                    <div class="query">${escapeHtml(link.query)}</div>
+                    <div class="actions">
+                      <button type="button" onclick="window.open('${link.url}', '_blank', 'noopener')">外部サイトで開く</button>
+                      <button type="button" onclick="copyQuery(${index})">検索式をコピー</button>
+                    </div>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        `;
+
+        $("#tab-checklist").innerHTML = `
+          <div class="check-list">
+            ${plan.checklist
+              .map(
+                (item) => `
+                  <label class="check-item">
+                    <input type="checkbox" />
+                    <span>${escapeHtml(item)}</span>
+                  </label>
+                `,
+              )
+              .join("")}
+          </div>
+        `;
+      }
+
+      function analyzePatent() {
+        const claim = $("#claimText").value.trim();
+        if (!claim) {
+          showToast("請求項または要約を入力してください");
+          return;
+        }
+
+        const elements = [
+          ["E1", "撮像手段", "カメラ等で作業者の画像を取得する要素", "要確認"],
+          ["E2", "姿勢推定手段", "画像から姿勢や骨格を推定する処理", "要確認"],
+          ["E3", "危険条件", "所定の条件に基づき危険状態を判定する処理", "不明"],
+          ["E4", "通知手段", "警告、通知、振動などを出力する要素", "要確認"],
+        ].filter((row) => claim.includes(row[1].replace("手段", "")) || row[0] !== "E3");
+
+        const designIdeas = [
+          {
+            idea: "カメラではなく装着型センサーで姿勢を検出する",
+            approach: "構成要素の置換",
+            impact: "撮像手段を必須とする請求項との差異を検討できます。",
+          },
+          {
+            idea: "端末側ではなくサーバー側で判定し、通知条件を変える",
+            approach: "処理主体・制御方式の変更",
+            impact: "処理手段や通知条件の構成差を作れる可能性があります。",
+          },
+          {
+            idea: "危険姿勢の検出ではなく、作業後の改善レポートに限定する",
+            approach: "用途・タイミングの限定",
+            impact: "リアルタイム警告を前提とする特許との差異を検討できます。",
+          },
+        ];
+
+        state.analysis = { elements, designIdeas };
+
+        $("#analysisOutput").innerHTML = `
+          <h3 class="small-title">構成要素分解</h3>
+          <table>
+            <thead><tr><th>ID</th><th>要素</th><th>平易な意味</th><th>確認</th></tr></thead>
+            <tbody>
+              ${elements
+                .map(
+                  (row) => `
+                    <tr>
+                      <td>${row[0]}</td>
+                      <td>${escapeHtml(row[1])}</td>
+                      <td>${escapeHtml(row[2])}</td>
+                      <td><span class="badge warn">${escapeHtml(row[3])}</span></td>
+                    </tr>
+                  `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+          <h3 class="small-title" style="margin-top:16px;">回避設計案</h3>
+          <div class="tag-list">
+            ${designIdeas
+              .map(
+                (idea) => `
+                  <div class="tag">
+                    <div>
+                      <b>${escapeHtml(idea.idea)}</b>
+                      <small>${escapeHtml(idea.impact)}</small>
+                    </div>
+                    <span class="badge neutral">${escapeHtml(idea.approach)}</span>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+          <div class="notice">分析結果は法的判断ではありません。最終判断は原典確認と専門家相談が必要です。</div>
+        `;
+      }
+
+      function buildMarkdown() {
+        const input = getFormInput();
+        const plan = state.plan;
+        const links = state.links;
+        const analysis = state.analysis;
+        const lines = [
+          "# 特許一次調査メモ",
+          "",
+          `生成日時: ${new Date().toLocaleString("ja-JP")}`,
+          "",
+          "## 入力内容",
+          "",
+          `- 機能概要: ${input.functionSummary}`,
+          `- 解決したい課題: ${input.problemToSolve}`,
+          `- 利用シーン・業界: ${input.usageScene}`,
+          `- 部品・技術: ${input.components}`,
+          `- 競合製品・企業: ${input.competitors}`,
+          "",
+          "## 生成キーワード",
+          "",
+          ...(plan
+            ? plan.keywords.map((keyword) => `- ${keyword.term}: ${keyword.reason}`)
+            : ["- 未生成"]),
+          "",
+          "## 検索リンク",
+          "",
+          ...(links.length
+            ? links.map((link) => `- ${link.label}: ${link.url}\n  - 検索式: ${link.query}`)
+            : ["- 未生成"]),
+          "",
+          "## チェックリスト",
+          "",
+          ...(plan ? plan.checklist.map((item) => `- [ ] ${item}`) : ["- [ ] 未生成"]),
+          "",
+          "## 特許分析メモ",
+          "",
+          `- 公開番号・特許番号: ${$("#publicationNumber").value.trim() || "未入力"}`,
+          `- 出願人: ${$("#assignee").value.trim() || "未入力"}`,
+          "",
+          "### 構成要素",
+          "",
+          ...(analysis
+            ? analysis.elements.map((row) => `- ${row[0]} ${row[1]}: ${row[2]} (${row[3]})`)
+            : ["- 未分析"]),
+          "",
+          "### 回避設計案",
+          "",
+          ...(analysis
+            ? analysis.designIdeas.map((idea) => `- ${idea.idea}: ${idea.impact}`)
+            : ["- 未分析"]),
+          "",
+          "## 注意",
+          "",
+          "このメモは特許調査の観点整理であり、法的判断や鑑定ではありません。",
+        ];
+        return lines.join("\n");
+      }
+
+      function exportMarkdown() {
+        const markdown = buildMarkdown();
+        const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "patent-research-memo.md";
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showToast("Markdown を出力しました");
+      }
+
+      function copyQuery(index) {
+        navigator.clipboard.writeText(state.links[index].query);
+        showToast("検索式をコピーしました");
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      $("#ideaForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const input = getFormInput();
+        if (!input.functionSummary) {
+          showToast("機能概要を入力してください");
+          return;
+        }
+        state.plan = generatePlan(input);
+        state.links = buildLinks(state.plan);
+        renderPlan();
+        showToast("調査プランを作成しました");
+      });
+
+      $("#clearButton").addEventListener("click", () => {
+        $$("textarea, input").forEach((field) => {
+          field.value = "";
+        });
+        showToast("入力をクリアしました");
+      });
+
+      $$(".tab").forEach((button) => {
+        button.addEventListener("click", () => {
+          $$(".tab").forEach((tab) => tab.classList.remove("active"));
+          $$(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+          button.classList.add("active");
+          $(`#tab-${button.dataset.tab}`).classList.add("active");
+        });
+      });
+
+      $("#analyzeButton").addEventListener("click", analyzePatent);
+      $("#exportButton").addEventListener("click", exportMarkdown);
+    </script>
+  </body>
+</html>
