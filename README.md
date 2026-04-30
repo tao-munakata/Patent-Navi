@@ -39,7 +39,7 @@ npm run dev -- -p 3000
 http://localhost:3000
 ```
 
-AI 生成は `OPENAI_API_KEY` がある場合に OpenAI API を使い、未設定の場合はフォールバック生成で動きます。
+調査プラン生成と特許分析メモは、`OPENAI_API_KEY` がある場合に OpenAI API を使い、未設定の場合はフォールバック生成で動きます。
 
 ```bash
 cp .env.example .env.local
@@ -57,7 +57,7 @@ npm audit --audit-level=moderate
 
 ## 次の実装候補
 
-1. `/api/analyze-patent` も OpenAI API に接続する
-2. AI 出力の追加バリデーションを入れる
-3. 調査履歴のブラウザ内保存を追加する
-4. 利用規約、プライバシーポリシー、免責ページを追加する
+1. AI 出力の追加バリデーションを入れる
+2. 調査履歴のブラウザ内保存を追加する
+3. 利用規約、プライバシーポリシー、免責ページを追加する
+4. API キー未設定時の画面表示をより明確にする

@@ -130,3 +130,86 @@ export const generatedSearchPlanJsonSchema = {
     warnings: { type: "array", items: { type: "string" } },
   },
 } as const;
+
+export const patentAnalysisJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sourceSummary",
+    "claimElements",
+    "comparisonTable",
+    "designAroundIdeas",
+    "riskNotes",
+    "expertQuestions",
+  ],
+  properties: {
+    sourceSummary: {
+      type: "object",
+      additionalProperties: false,
+      required: ["publicationNumber", "assignee", "documentType", "nonLegalNotice"],
+      properties: {
+        publicationNumber: { type: "string" },
+        assignee: { type: "string" },
+        documentType: { type: "string" },
+        nonLegalNotice: { type: "string" },
+      },
+    },
+    claimElements: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "text", "plainMeaning", "elementType"],
+        properties: {
+          id: { type: "string" },
+          text: { type: "string" },
+          plainMeaning: { type: "string" },
+          elementType: {
+            type: "string",
+            enum: ["input", "processing", "output", "structure", "condition", "other"],
+          },
+        },
+      },
+    },
+    comparisonTable: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["elementId", "userProductFeature", "status", "reason", "questionsForExpert"],
+        properties: {
+          elementId: { type: "string" },
+          userProductFeature: { type: "string" },
+          status: { type: "string", enum: ["要確認", "低そう", "不明", "対象外かも"] },
+          reason: { type: "string" },
+          questionsForExpert: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    designAroundIdeas: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "idea",
+          "approach",
+          "expectedEffect",
+          "difficulty",
+          "businessImpact",
+          "needsFurtherSearch",
+        ],
+        properties: {
+          idea: { type: "string" },
+          approach: { type: "string" },
+          expectedEffect: { type: "string" },
+          difficulty: { type: "string", enum: ["low", "medium", "high"] },
+          businessImpact: { type: "string" },
+          needsFurtherSearch: { type: "boolean" },
+        },
+      },
+    },
+    riskNotes: { type: "array", items: { type: "string" } },
+    expertQuestions: { type: "array", items: { type: "string" } },
+  },
+} as const;

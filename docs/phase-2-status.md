@@ -8,6 +8,7 @@
 - OpenAI API キーがある場合は Structured Outputs で調査プラン生成
 - OpenAI API キーがない場合のフォールバック生成
 - `/api/analyze-patent` を追加
+- `/api/analyze-patent` を OpenAI API に接続
 - 検索リンク生成ロジックを `lib/search-links.ts` に分離
 - Markdown エクスポートを `lib/markdown-export.ts` に分離
 - 型定義を `types/patent.ts` に分離
@@ -33,17 +34,16 @@ npm audit --audit-level=moderate
 http://localhost:3000
 ```
 
-## まだフォールバックのままの部分
+## まだ残っている部分
 
-- `/api/analyze-patent` は現時点ではサンプル分析ロジック
+- OpenAI API キー未設定時は調査プラン生成、特許分析ともにフォールバック生成
 - AI 出力のランタイムバリデーションは未実装
 - 調査履歴保存は未実装
 - 認証、課金、利用規約ページは未実装
 
 ## 次の推奨作業
 
-1. `/api/analyze-patent` を OpenAI API に接続
-2. AI 出力 JSON のランタイム検証を追加
-3. 入力内容と調査結果をブラウザ内に保存
-4. 販売前提の免責、利用規約、プライバシーポリシーを追加
-
+1. AI 出力 JSON のランタイム検証を追加
+2. 入力内容と調査結果をブラウザ内に保存
+3. 販売前提の免責、利用規約、プライバシーポリシーを追加
+4. API キー未設定時の画面表示をより明確にする

@@ -15,19 +15,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "機能概要を入力してください。" }, { status: 400 });
   }
 
-  const plan = await generatePlan(input);
+  const { plan, source } = await generatePlan(input);
   const links = buildSearchLinks(plan);
 
   return NextResponse.json({
     plan,
     links,
-    source: process.env.OPENAI_API_KEY ? "openai" : "fallback",
+    source,
   });
 }
 
-async function generatePlan(input: IdeaInput): Promise<GeneratedSearchPlan> {
+async function generatePlan(input: IdeaInput): Promise<{ plan: GeneratedSearchPlan; source: "openai" | "fallback" }> {
   if (!process.env.OPENAI_API_KEY) {
-    return generateFallbackPlan(input);
+    return { plan: generateFallbackPlan(input), source: "fallback" };
   }
 
   try {
@@ -53,9 +53,9 @@ async function generatePlan(input: IdeaInput): Promise<GeneratedSearchPlan> {
     });
 
     const outputText = response.output_text;
-    return JSON.parse(outputText) as GeneratedSearchPlan;
+    return { plan: JSON.parse(outputText) as GeneratedSearchPlan, source: "openai" };
   } catch (error) {
     console.error("OpenAI plan generation failed. Falling back.", error);
-    return generateFallbackPlan(input);
+    return { plan: generateFallbackPlan(input), source: "fallback" };
   }
 }

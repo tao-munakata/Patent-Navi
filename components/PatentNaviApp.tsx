@@ -96,7 +96,7 @@ export function PatentNaviApp() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "分析に失敗しました。");
       setAnalysis(data.analysis);
-      setMessage("特許分析メモを作成しました。");
+      setMessage(data.source === "openai" ? "AI で特許分析メモを作成しました。" : "サンプル生成で特許分析メモを作成しました。");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "分析に失敗しました。");
     } finally {

@@ -13,40 +13,67 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
   const hasCamera = /カメラ|画像|映像|撮像/.test(text);
   const hasAi = /AI|推定|検出|認識|解析/.test(text);
   const hasAlert = /通知|警告|アラート|報知/.test(text);
+  const hasDrone = /ドローン|無人機|移動体|ロボット/.test(text);
+  const hasInspection = /点検|検査|監視|診断/.test(text);
+  const hasDamage = /ひび|亀裂|損傷|異常|劣化|欠陥/.test(text);
   const industryTerms = input.usageScene
     .split(/[、,\n]/)
     .map((term) => term.trim())
     .filter(Boolean);
+  const componentTerms = input.components
+    .split(/[、,\n]/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+  const extractedTerms = unique([
+    ...componentTerms,
+    ...extractImportantTerms(input.functionSummary),
+    ...industryTerms,
+  ]).slice(0, 8);
+  const mainTerm = extractedTerms[0] || "対象技術";
+  const actionTerm = hasDamage ? "異常検出" : hasInspection ? "点検支援" : hasAi ? "判定処理" : "技術処理";
+  const outputTerm = hasAlert ? "通知" : hasInspection ? "点検結果出力" : "出力";
 
   const keywords: GeneratedSearchPlan["keywords"] = [
     {
-      term: "姿勢推定",
+      term: mainTerm,
       language: "ja",
       category: "technical",
-      aliases: ["骨格推定", "人体姿勢推定", "ポーズ推定"],
-      english: ["pose estimation", "human pose estimation"],
-      reason: "画像から人の姿勢を推定する中心技術として検索に使えます。",
+      aliases: unique([mainTerm, `${mainTerm}システム`, `${mainTerm}装置`]),
+      english: englishHints(mainTerm),
+      reason: "入力された機能概要・部品から見た中心語として検索に使えます。",
       includeByDefault: true,
     },
     {
-      term: "危険姿勢検出",
+      term: actionTerm,
       language: "ja",
       category: "effect",
-      aliases: ["異常姿勢判定", "危険動作検出", "作業姿勢判定"],
-      english: ["unsafe posture detection", "ergonomic risk detection"],
-      reason: "製品名ではなく、検出する状態や動作から探せます。",
+      aliases: unique(["検出", "判定", "識別", "抽出", actionTerm]),
+      english: englishHints(actionTerm),
+      reason: "製品名ではなく、作用・動作から検索するための語です。",
       includeByDefault: true,
     },
     {
-      term: "作業者安全",
+      term: industryTerms[0] || "用途",
       language: "ja",
       category: "usage",
-      aliases: ["労働安全", "現場安全", "安全管理"],
-      english: ["worker safety", "worksite safety"],
-      reason: "用途特許や異業種の安全管理技術を拾う軸になります。",
+      aliases: industryTerms.length ? industryTerms : ["利用シーン", "用途", "適用分野"],
+      english: englishHints(industryTerms[0] || "use case"),
+      reason: "用途特許や業界限定の権利を拾う軸になります。",
       includeByDefault: true,
     },
   ];
+
+  for (const term of extractedTerms.slice(1, 5)) {
+    keywords.push({
+      term,
+      language: "ja",
+      category: "component",
+      aliases: unique([term, `${term}手段`, `${term}部`]),
+      english: englishHints(term),
+      reason: "構成要素または関連技術として、請求項中の表現を探すために使えます。",
+      includeByDefault: true,
+    });
+  }
 
   if (hasCamera) {
     keywords.push({
@@ -84,54 +111,89 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     });
   }
 
+  if (hasDrone) {
+    keywords.push({
+      term: "移動体",
+      language: "ja",
+      category: "component",
+      aliases: ["無人機", "ドローン", "ロボット", "走行体"],
+      english: ["mobile body", "drone", "unmanned vehicle", "robot"],
+      reason: "ドローン等を特許で広く表す機能的・上位概念の語です。",
+      includeByDefault: true,
+    });
+  }
+
+  if (hasInspection || hasDamage) {
+    keywords.push({
+      term: "損傷判定",
+      language: "ja",
+      category: "technical",
+      aliases: ["欠陥検出", "異常検出", "劣化診断", "ひび割れ検出"],
+      english: ["damage detection", "defect detection", "crack detection", "inspection"],
+      reason: "点検・検査系の特許で、目的や処理内容から検索するために使えます。",
+      includeByDefault: true,
+    });
+  }
+
   const usagePart = industryTerms.slice(0, 3).join(" OR ") || "作業現場";
+  const technicalTerms = unique([
+    mainTerm,
+    ...extractedTerms.slice(1, 4),
+    hasCamera ? "撮像手段" : "",
+    hasAi ? "判定手段" : "",
+    hasDrone ? "移動体" : "",
+  ].filter(Boolean));
+  const actionTerms = unique([
+    actionTerm,
+    hasDamage ? "損傷判定" : "",
+    hasInspection ? "点検" : "",
+    hasAlert ? "通知" : outputTerm,
+  ].filter(Boolean));
+  const broadQuery = `(${technicalTerms.slice(0, 4).join(" OR ")}) (${actionTerms.slice(0, 4).join(" OR ")})`;
+  const englishQuery = englishHints(mainTerm).concat(englishHints(actionTerm)).slice(0, 5).join(" ");
+  const functionalQuery = `(${functionalizeTerms(technicalTerms).slice(0, 5).join(" OR ")}) (${functionalizeTerms(actionTerms).slice(0, 4).join(" OR ")})`;
 
   return {
     summary: {
-      title: "カメラ映像による危険姿勢検出と通知",
+      title: createTitle(input.functionSummary),
       plainDescription: input.functionSummary,
       assumptions: [
-        "姿勢は画像解析または骨格推定により判定する想定です。",
-        "通知はスマートフォン画面、音、振動のいずれかで行う想定です。",
+        "入力文から主要な構成要素と作用を簡易抽出しています。",
+        "AI API 未接続時のフォールバック生成のため、専門語の網羅性は限定的です。",
       ],
       nonLegalNotice,
     },
     keywords,
     functionalTerms: [
-      {
-        plainTerm: "カメラ",
-        patentTerm: "撮像手段",
-        reason: "具体的な製品名より広い機能表現で検索するため。",
-      },
-      {
-        plainTerm: "通知",
-        patentTerm: "報知手段",
-        reason: "音、画面、振動などを含む表現として使えるため。",
-      },
+      ...technicalTerms.slice(0, 5).map((term) => ({
+        plainTerm: term,
+        patentTerm: toFunctionalTerm(term),
+        reason: "具体名だけでなく、特許で使われやすい広い機能表現でも検索するため。",
+      })),
     ],
     actionTerms: [
       {
-        term: "検出",
+        term: actionTerm,
         examples: ["判定", "推定", "抽出", "識別"],
         reason: "製品名ではなく処理動作から検索するため。",
       },
       {
-        term: "通知",
+        term: outputTerm,
         examples: ["警告", "報知", "出力", "提示"],
-        reason: "ユーザーへの伝達方法を広く拾うため。",
+        reason: "処理結果の出し方を広く拾うため。",
       },
     ],
     searchAxes: [
       {
         axis: "技術構成",
-        queryIntent: "撮像、姿勢推定、危険判定、通知の組み合わせで探す",
-        recommendedTerms: ["姿勢推定", "撮像手段", "通知手段"],
+        queryIntent: `${technicalTerms.slice(0, 4).join("、")} の組み合わせで探す`,
+        recommendedTerms: technicalTerms.slice(0, 5),
         notes: "構成要素が似た特許を探します。",
       },
       {
         axis: "課題・効果",
-        queryIntent: "転倒防止、腰痛予防、作業安全、早期警告の観点で探す",
-        recommendedTerms: ["作業者安全", "危険姿勢検出", "早期警告"],
+        queryIntent: input.problemToSolve || `${actionTerm} による課題解決の観点で探す`,
+        recommendedTerms: actionTerms.slice(0, 5),
         notes: "目的や効果が近い特許を拾う軸です。",
       },
       {
@@ -144,7 +206,7 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     classificationHints: [
       {
         type: "FI_OR_F_TERM_VIEWPOINT",
-        viewpoint: "作業安全、監視、画像認識、警報",
+        viewpoint: unique([mainTerm, actionTerm, ...industryTerms, hasCamera ? "画像認識" : "", hasInspection ? "点検" : ""].filter(Boolean)).join("、"),
         instruction:
           "J-PlatPat ではキーワード検索後に FI/F タームを確認し、目的・効果の観点で絞り込む。",
         confidence: "medium",
@@ -154,35 +216,35 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
       {
         id: "broad_technical_ja",
         label: "日本語で広く探す",
-        query: "(姿勢推定 OR 骨格推定 OR 危険姿勢検出) (通知 OR 警告 OR 報知) (作業者 OR 作業現場)",
+        query: broadQuery,
         targetSites: ["google_patents", "j_platpat"],
       },
       {
         id: "global_technical_en",
         label: "英語で海外も探す",
-        query: '("pose estimation" OR "human pose estimation") (alert OR notification OR warning) "worker safety"',
+        query: englishQuery || `${mainTerm} ${actionTerm}`,
         targetSites: ["google_patents", "espacenet"],
       },
       {
         id: "functional_claim",
         label: "機能的表現で探す",
-        query: "(撮像手段 OR 画像取得手段) (判定手段 OR 推定手段) (通知手段 OR 報知手段)",
+        query: functionalQuery,
         targetSites: ["google_patents", "j_platpat"],
       },
       {
         id: "usage_specific",
         label: "用途特許を探す",
-        query: `(姿勢推定 OR 危険姿勢検出) (${usagePart})`,
+        query: `(${technicalTerms.slice(0, 3).join(" OR ")}) (${usagePart})`,
         targetSites: ["google_patents", "j_platpat"],
       },
     ],
     checklist: [
       {
-        item: "請求項に、撮像、姿勢推定、危険判定、通知の全要素が含まれるか確認する。",
+        item: `請求項に、${technicalTerms.slice(0, 4).join("、")} の各要素が含まれるか確認する。`,
         reason: "構成要素ごとの対応関係を整理するため。",
       },
       {
-        item: "用途が作業現場、介護、物流などに限定されていないか確認する。",
+        item: `用途が ${industryTerms.join("、") || "特定業界"} に限定されていないか確認する。`,
         reason: "用途特許の範囲を確認するため。",
       },
       {
@@ -196,6 +258,61 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     ],
     warnings: ["検索結果の権利状態や有効期間は必ず原典で確認してください。"],
   };
+}
+
+function extractImportantTerms(text: string): string[] {
+  return text
+    .replace(/[。、．，,]/g, " ")
+    .split(/\s|から|で|を|に|の|する|して|したい|できる|による|ため/g)
+    .map((term) => term.trim())
+    .filter((term) => term.length >= 2)
+    .filter((term) => !["こと", "もの", "場所", "場合", "早期", "効率化"].includes(term));
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function createTitle(summary: string): string {
+  const trimmed = summary.trim();
+  if (!trimmed) return "特許一次調査プラン";
+  return trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
+}
+
+function englishHints(term: string): string[] {
+  const dictionary: Record<string, string[]> = {
+    カメラ: ["camera", "imaging"],
+    画像認識: ["image recognition", "computer vision"],
+    画像: ["image", "imaging"],
+    映像: ["video", "image"],
+    水中ドローン: ["underwater drone", "underwater vehicle"],
+    ドローン: ["drone", "unmanned vehicle"],
+    配管: ["pipe", "piping"],
+    ひび割れ: ["crack", "crack detection"],
+    損傷判定: ["damage detection", "defect detection"],
+    異常検出: ["anomaly detection", "abnormality detection"],
+    点検: ["inspection"],
+    インフラ点検: ["infrastructure inspection"],
+    姿勢推定: ["pose estimation", "human pose estimation"],
+    通知: ["notification", "alert"],
+    報知手段: ["notification unit", "alert unit"],
+    撮像手段: ["imaging unit", "image acquisition unit"],
+    判定手段: ["determination unit", "detection unit"],
+  };
+  return dictionary[term] || [term];
+}
+
+function toFunctionalTerm(term: string): string {
+  if (/カメラ|画像|映像|撮像/.test(term)) return "撮像手段";
+  if (/ドローン|ロボット|移動/.test(term)) return "移動手段";
+  if (/検出|判定|認識|解析|診断/.test(term)) return "判定手段";
+  if (/通知|警告|アラート|出力/.test(term)) return "報知手段";
+  if (/配管|構造|装置/.test(term)) return "対象物";
+  return `${term}手段`;
+}
+
+function functionalizeTerms(terms: string[]): string[] {
+  return unique(terms.map(toFunctionalTerm));
 }
 
 export function generateFallbackAnalysis(request: PatentAnalysisRequest): PatentAnalysis {
