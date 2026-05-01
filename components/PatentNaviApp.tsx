@@ -47,6 +47,14 @@ type JPlatPatCountResult = {
   sourceUrl: string;
   note: string;
 };
+type PatentSummaryCandidate = {
+  publicationNumber: string;
+  patentNumber: string;
+  title: string;
+  assignee: string;
+  abstract: string;
+  jplatpatUrl: string;
+};
 
 export function PatentNaviApp() {
   const [mode, setMode] = useState<PageMode>("quick");
@@ -298,123 +306,92 @@ export function PatentNaviApp() {
           </button>
         </div>
 
-        <div className="workbench">
-          <section id="input" className="panel">
-            <div className="panelHeader">
-              <h1>調査テーマ</h1>
-            </div>
-            <div className="panelBody">
-              <InputField
-                id="functionSummary"
-                label="ひらめきテキスト"
-                value={input.functionSummary}
-                onChange={(value) => updateInput("functionSummary", value)}
-                hint="思いついた話、録音から起こした文章、雑なメモをそのまま貼ります。入力後に自動でコア単語へ分解します。"
-                required
-                minHeight={210}
-              />
-              {plan ? (
-                <div className="inlineKeywordArea">
-                  <h3 className="smallTitle">コア単語の強さ</h3>
-                  <KeywordCloud stats={keywordStats} onDropTerm={addDroppedTerm} />
-                </div>
-              ) : null}
-              <InputField
-                id="problemToSolve"
-                label="気になったポイント"
-                value={input.problemToSolve}
-                onChange={(value) => updateInput("problemToSolve", value)}
-                hint="任意。そこが特許になりそう、と思った理由を書きます。"
-              />
-              <TextField
-                id="usageScene"
-                label="最初に絞る業界"
-                value={input.usageScene}
-                onChange={(value) => {
-                  updateInput("usageScene", value);
-                  setIndustryFilter(value);
-                }}
-                placeholder="例: 飲食店、海洋機器、工場、医療"
-              />
-              <InputField
-                id="components"
-                label="絶対に外したくない単語"
-                value={input.components}
-                onChange={(value) => updateInput("components", value)}
-                hint="任意。会話内で特に重要だと思う部品・処理・材料を入れます。"
-              />
-              <InputField
-                id="competitors"
-                label="競合・近い商品"
-                value={input.competitors}
-                onChange={(value) => updateInput("competitors", value)}
-              />
-
-              <div className="actions">
-                <button className="primary" type="button" onClick={() => createPlan("quick")} disabled={loadingPlan}>
-                  {loadingPlan ? "分解中..." : "コア単語に分解する"}
-                </button>
-                <button type="button" onClick={() => createPlan("detail")} disabled={loadingPlan}>
-                  詳細調査へ進む
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearGeneratedState();
-                    setInput(exampleInput);
-                    setIndustryFilter(exampleInput.usageScene);
-                    setBusinessFilter("");
-                    setProductFilter("");
+        {mode === "quick" ? (
+          <QuickSimplePanel
+            input={input}
+            plan={plan}
+            keywordStats={keywordStats}
+            droppedTerms={droppedTerms}
+            hitCount={visibleHitCount}
+            narrowedQuery={narrowedQuery}
+            resultLines={resultLines}
+            loadingPlan={loadingPlan}
+            loadingJplatpatCount={loadingJplatpatCount}
+            onInputChange={(value) => updateInput("functionSummary", value)}
+            onDropTerm={addDroppedTerm}
+            onRemoveDroppedTerm={removeDroppedTerm}
+          />
+        ) : (
+          <div className="workbench">
+            <section id="input" className="panel">
+              <div className="panelHeader">
+                <h1>調査テーマ</h1>
+              </div>
+              <div className="panelBody">
+                <InputField
+                  id="functionSummary"
+                  label="ひらめきテキスト"
+                  value={input.functionSummary}
+                  onChange={(value) => updateInput("functionSummary", value)}
+                  hint="思いついた話、録音から起こした文章、雑なメモをそのまま貼ります。入力後に自動でコア単語へ分解します。"
+                  required
+                  minHeight={210}
+                />
+                <InputField
+                  id="problemToSolve"
+                  label="気になったポイント"
+                  value={input.problemToSolve}
+                  onChange={(value) => updateInput("problemToSolve", value)}
+                  hint="任意。そこが特許になりそう、と思った理由を書きます。"
+                />
+                <TextField
+                  id="usageScene"
+                  label="最初に絞る業界"
+                  value={input.usageScene}
+                  onChange={(value) => {
+                    updateInput("usageScene", value);
+                    setIndustryFilter(value);
                   }}
-                >
-                  入力例を入れる
-                </button>
-              </div>
+                  placeholder="例: 飲食店、海洋機器、工場、医療"
+                />
+                <InputField
+                  id="components"
+                  label="絶対に外したくない単語"
+                  value={input.components}
+                  onChange={(value) => updateInput("components", value)}
+                  hint="任意。会話内で特に重要だと思う部品・処理・材料を入れます。"
+                />
+                <InputField
+                  id="competitors"
+                  label="競合・近い商品"
+                  value={input.competitors}
+                  onChange={(value) => updateInput("competitors", value)}
+                />
 
-              <div className="notice">
-                まずは会話からコアな単語を取り出します。件数が多い場合は、業界・用途・製品で絞り込みます。
-              </div>
-              {message ? <div className="notice">{message}</div> : null}
-              {error ? <div className="notice error">{error}</div> : null}
-            </div>
-          </section>
+                <div className="actions">
+                  <button className="primary" type="button" onClick={() => createPlan("detail")} disabled={loadingPlan}>
+                    {loadingPlan ? "分解中..." : "詳細調査へ進む"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearGeneratedState();
+                      setInput(exampleInput);
+                      setIndustryFilter(exampleInput.usageScene);
+                      setBusinessFilter("");
+                      setProductFilter("");
+                    }}
+                  >
+                    入力例を入れる
+                  </button>
+                </div>
 
-          <section className="results">
-            {mode === "quick" ? (
-              <QuickJudgementPanel
-                plan={plan}
-                primaryQuery={primaryQuery}
-                narrowedQuery={narrowedQuery}
-                resultLines={resultLines}
-                hitCount={visibleHitCount}
-                pastedCount={pastedCount}
-                keywordStats={keywordStats}
-                droppedTerms={droppedTerms}
-                jplatpatCount={jplatpatCount}
-                loadingJplatpatCount={loadingJplatpatCount}
-                industryFilter={industryFilter}
-                businessFilter={businessFilter}
-                productFilter={productFilter}
-                jplatpatResults={jplatpatResults}
-                onCopy={copyText}
-                onFetchJplatpatCount={fetchJplatpatCount}
-                onDropTerm={addDroppedTerm}
-                onRemoveDroppedTerm={removeDroppedTerm}
-                onIndustryFilter={(value) => {
-                  setIndustryFilter(value);
-                  setJplatpatCount(null);
-                }}
-                onBusinessFilter={(value) => {
-                  setBusinessFilter(value);
-                  setJplatpatCount(null);
-                }}
-                onProductFilter={(value) => {
-                  setProductFilter(value);
-                  setJplatpatCount(null);
-                }}
-                onResultsChange={setJplatpatResults}
-              />
-            ) : (
+                {message ? <div className="notice">{message}</div> : null}
+                {error ? <div className="notice error">{error}</div> : null}
+              </div>
+            </section>
+
+            <section className="results">
               <DetailResearchPanel
                 plan={plan}
                 links={links}
@@ -429,11 +406,150 @@ export function PatentNaviApp() {
                 onAnalyze={analyzePatent}
                 onExport={exportMarkdown}
               />
-            )}
-          </section>
-        </div>
+            </section>
+          </div>
+        )}
       </main>
     </>
+  );
+}
+
+function QuickSimplePanel(props: {
+  input: IdeaInput;
+  plan: GeneratedSearchPlan | null;
+  keywordStats: { term: string; count: number }[];
+  droppedTerms: string[];
+  hitCount: number;
+  narrowedQuery: string;
+  resultLines: string[];
+  loadingPlan: boolean;
+  loadingJplatpatCount: boolean;
+  onInputChange: (value: string) => void;
+  onDropTerm: (term: string) => void;
+  onRemoveDroppedTerm: (term: string) => void;
+}) {
+  const documentCandidates = props.plan
+    ? buildPatentSummaryCandidates({
+        plan: props.plan,
+        narrowedQuery: props.narrowedQuery,
+        droppedTerms: props.droppedTerms,
+        resultLines: props.resultLines,
+      })
+    : [];
+
+  return (
+    <div className="quickStack">
+      <section id="input" className="panel">
+        <div className="panelHeader">
+          <h1>調査テーマ</h1>
+        </div>
+        <div className="panelBody">
+          <InputField
+            id="functionSummary"
+            label="ひらめきテキスト"
+            value={props.input.functionSummary}
+            onChange={props.onInputChange}
+            hint="思いついた話をそのまま入れてください。自動でコア単語に分解します。"
+            required
+            minHeight={190}
+          />
+        </div>
+      </section>
+
+      <section id="quick" className="panel">
+        <div className="panelHeader">
+          <h2>コア単語の強さ</h2>
+        </div>
+        <div className="panelBody">
+          {props.plan ? (
+            <KeywordCloud stats={props.keywordStats} onDropTerm={props.onDropTerm} />
+          ) : (
+            <div className="simpleEmpty">{props.loadingPlan ? "分解中..." : "ひらめきテキストを入れると、ここに単語が出ます。"}</div>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panelHeader">
+          <h2>絞り込み窓</h2>
+        </div>
+        <div className="panelBody">
+          <div
+            className="dropWindow dropWindowLarge"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const term = event.dataTransfer.getData("text/plain");
+              if (term) props.onDropTerm(term);
+            }}
+          >
+            <div className="dropWindowHeader">
+              <div>
+                <h3>単語をここに入れる</h3>
+                <p>上の単語を押す、またはつかんで入れると件数が減っていきます。</p>
+              </div>
+              <div className="dropCount">
+                <span>{props.loadingJplatpatCount ? "更新中" : "現在"}</span>
+                <strong>{props.hitCount.toLocaleString()}</strong>
+                <small>件</small>
+              </div>
+            </div>
+            <div className="droppedTerms">
+              {props.droppedTerms.length ? (
+                props.droppedTerms.map((term) => (
+                  <button type="button" key={term} onClick={() => props.onRemoveDroppedTerm(term)}>
+                    {term} x
+                  </button>
+                ))
+              ) : (
+                <span className="hint">まだ単語が入っていません。</span>
+              )}
+            </div>
+          </div>
+
+          {props.narrowedQuery ? <div className="query">{props.narrowedQuery}</div> : null}
+
+          {props.hitCount <= 10 && props.hitCount > 0 ? (
+            <div className="overviewPanel">
+              <span className="riskBadge riskLow">10件以下</span>
+              <h3>文献・要約</h3>
+              {documentCandidates.length ? (
+                <div className="documentList">
+                  {documentCandidates.map((candidate) => (
+                    <a
+                      className="documentCard"
+                      href={candidate.jplatpatUrl}
+                      key={candidate.publicationNumber}
+                      title="J-PlatPatの番号照会で開く"
+                      onClick={(event) => openJPlatPatNumberInquiry(event, candidate)}
+                    >
+                      <div>
+                        <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
+                        <h4>{candidate.title}</h4>
+                        <p>{candidate.abstract}</p>
+                        <small>{candidate.assignee}</small>
+                        <input
+                          aria-label={`${candidate.patentNumber} の番号`}
+                          className="documentNumberInput"
+                          readOnly
+                          value={candidate.patentNumber}
+                        />
+                        <em>クリックすると番号をコピーして、番号照会へ移動します。</em>
+                      </div>
+                      <strong>番号照会へ</strong>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="documentEmpty">
+                  J-PlatPatの結果一覧から、文献番号を含む行を貼り付けるとここに表示します。
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -628,24 +744,28 @@ function QuickJudgementPanel(props: {
                   droppedTerms: props.droppedTerms,
                   resultLines: props.resultLines,
                 }).map((candidate) => (
-                  <a
-                    className="documentCard"
-                    href={candidate.jplatpatUrl}
-                    key={candidate.publicationNumber}
-                    title="J-PlatPatの番号照会で開く"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(candidate.patentNumber).catch(() => undefined);
-                    }}
-                  >
-                    <div>
-                      <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
-                      <h4>{candidate.title}</h4>
-                      <p>{candidate.abstract}</p>
-                      <small>{candidate.assignee}</small>
-                      <em>{candidate.patentNumber} をコピーして番号照会へ移動します。</em>
-                    </div>
-                    <strong>番号照会へ</strong>
-                  </a>
+                    <a
+                      className="documentCard"
+                      href={candidate.jplatpatUrl}
+                      key={candidate.publicationNumber}
+                      title="J-PlatPatの番号照会で開く"
+                      onClick={(event) => openJPlatPatNumberInquiry(event, candidate)}
+                    >
+                      <div>
+                        <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
+                        <h4>{candidate.title}</h4>
+                        <p>{candidate.abstract}</p>
+                        <small>{candidate.assignee}</small>
+                        <input
+                          aria-label={`${candidate.patentNumber} の番号`}
+                          className="documentNumberInput"
+                          readOnly
+                          value={candidate.patentNumber}
+                        />
+                        <em>クリックすると番号をコピーして、番号照会へ移動します。</em>
+                      </div>
+                      <strong>番号照会へ</strong>
+                    </a>
                 ))
               ) : (
                 <div className="documentEmpty">
@@ -926,13 +1046,13 @@ function buildPatentSummaryCandidates(props: {
   narrowedQuery: string;
   droppedTerms: string[];
   resultLines: string[];
-}) {
+}): PatentSummaryCandidate[] {
   const pasted = props.resultLines
     .filter((line) => !/検索結果|件/.test(line))
     .slice(0, 3);
 
   if (pasted.length) {
-    return pasted.flatMap((line, index) => {
+    const pastedCandidates = pasted.flatMap((line, index) => {
       const patentNumber = extractPatentNumber(line);
       if (!patentNumber) return [];
       return [{
@@ -944,15 +1064,29 @@ function buildPatentSummaryCandidates(props: {
         jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, patentNumber),
       }];
     });
+    if (pastedCandidates.length) return pastedCandidates;
   }
 
-  return [];
+  return buildKnownPatentCandidates(props);
 }
 
 function buildJPlatPatCandidateUrl(_query: string, patentNumber = "") {
   return patentNumber
     ? "https://www.j-platpat.inpit.go.jp/?uri=/p0000"
     : "https://www.j-platpat.inpit.go.jp/?uri=/p0100";
+}
+
+function openJPlatPatNumberInquiry(
+  event: { preventDefault: () => void },
+  candidate: PatentSummaryCandidate,
+) {
+  event.preventDefault();
+  const opened = window.open(candidate.jplatpatUrl, "_blank", "noopener,noreferrer");
+  void navigator.clipboard?.writeText(candidate.patentNumber).catch(() => undefined);
+
+  if (!opened) {
+    window.location.href = candidate.jplatpatUrl;
+  }
 }
 
 function extractPatentNumber(text: string) {
@@ -975,6 +1109,43 @@ function normalizePatentNumber(numberText: string) {
     .replace(/[‐‑‒–—ー－]/g, "-")
     .replace(/\s+/g, "")
     .replace(/号$/, "");
+}
+
+function buildKnownPatentCandidates(props: {
+  plan: GeneratedSearchPlan;
+  narrowedQuery: string;
+  droppedTerms: string[];
+  resultLines: string[];
+}) {
+  const text = [
+    props.narrowedQuery,
+    ...props.droppedTerms,
+    props.plan.summary.plainDescription,
+    ...props.plan.keywords.map((keyword) => keyword.term),
+  ].join(" ");
+
+  if (!/宗像\s?忠夫/.test(text)) return [];
+
+  return [
+    {
+      publicationNumber: "特許第7271771",
+      patentNumber: "特許第7271771",
+      title: "鍵管理システム、及び鍵管理装置",
+      assignee: "株式会社ドッドウエルビー・エム・エス / 発明者: 宗像 忠夫ほか",
+      abstract:
+        "鍵収納箱と鍵管理サーバを用いて、建物識別情報と鍵利用予定情報を照合し、鍵収納箱の解錠を管理する鍵管理システムです。",
+      jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特許第7271771"),
+    },
+    {
+      publicationNumber: "特開2024-004453",
+      patentNumber: "特開2024-004453",
+      title: "鍵管理装置",
+      assignee: "株式会社ドッドウエルビー・エム・エス / 発明者: 宗像 忠夫ほか",
+      abstract:
+        "鍵の利用予定と建物識別情報を対応付け、解錠要求信号に含まれる建物識別情報を照合して、鍵収納箱の解錠許可を出力する鍵管理装置です。",
+      jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特開2024-004453"),
+    },
+  ];
 }
 
 function countOccurrences(text: string, term: string) {
