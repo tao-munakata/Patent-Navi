@@ -16,6 +16,7 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
   const hasDrone = /ドローン|無人機|移動体|ロボット/.test(text);
   const hasInspection = /点検|検査|監視|診断/.test(text);
   const hasDamage = /ひび|亀裂|損傷|異常|劣化|欠陥/.test(text);
+  const hasReadout = /読取|読み取り|数値化|針/.test(text);
   const industryTerms = input.usageScene
     .split(/[、,\n]/)
     .map((term) => term.trim())
@@ -26,12 +27,14 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     .filter(Boolean);
   const extractedTerms = unique([
     ...componentTerms,
+    ...domainSpecificTerms(text),
     ...extractImportantTerms(input.functionSummary),
     ...industryTerms,
   ]).slice(0, 8);
   const mainTerm = extractedTerms[0] || "対象技術";
-  const actionTerm = hasDamage ? "異常検出" : hasInspection ? "点検支援" : hasAi ? "判定処理" : "技術処理";
+  const actionTerm = hasDamage ? "異常検出" : hasReadout ? "読取・数値化" : hasInspection ? "点検支援" : hasAi ? "判定処理" : "技術処理";
   const outputTerm = hasAlert ? "通知" : hasInspection ? "点検結果出力" : "出力";
+  const shouldAddActionKeyword = hasDamage || hasReadout || hasInspection || hasAi || hasAlert;
 
   const keywords: GeneratedSearchPlan["keywords"] = [
     {
@@ -43,7 +46,10 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
       reason: "入力された機能概要・部品から見た中心語として検索に使えます。",
       includeByDefault: true,
     },
-    {
+  ];
+
+  if (shouldAddActionKeyword) {
+    keywords.push({
       term: actionTerm,
       language: "ja",
       category: "effect",
@@ -51,8 +57,11 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
       english: englishHints(actionTerm),
       reason: "製品名ではなく、作用・動作から検索するための語です。",
       includeByDefault: true,
-    },
-    {
+    });
+  }
+
+  if (industryTerms.length) {
+    keywords.push({
       term: industryTerms[0] || "用途",
       language: "ja",
       category: "usage",
@@ -60,8 +69,8 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
       english: englishHints(industryTerms[0] || "use case"),
       reason: "用途特許や業界限定の権利を拾う軸になります。",
       includeByDefault: true,
-    },
-  ];
+    });
+  }
 
   for (const term of extractedTerms.slice(1, 5)) {
     keywords.push({
@@ -135,7 +144,7 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     });
   }
 
-  const usagePart = industryTerms.slice(0, 3).join(" OR ") || "作業現場";
+  const usagePart = industryTerms.slice(0, 3).join(" OR ");
   const technicalTerms = unique([
     mainTerm,
     ...extractedTerms.slice(1, 4),
@@ -143,15 +152,32 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
     hasAi ? "判定手段" : "",
     hasDrone ? "移動体" : "",
   ].filter(Boolean));
-  const actionTerms = unique([
+  const actionTerms = shouldAddActionKeyword ? unique([
     actionTerm,
     hasDamage ? "損傷判定" : "",
     hasInspection ? "点検" : "",
     hasAlert ? "通知" : outputTerm,
-  ].filter(Boolean));
-  const broadQuery = `(${technicalTerms.slice(0, 4).join(" OR ")}) (${actionTerms.slice(0, 4).join(" OR ")})`;
-  const englishQuery = englishHints(mainTerm).concat(englishHints(actionTerm)).slice(0, 5).join(" ");
-  const functionalQuery = `(${functionalizeTerms(technicalTerms).slice(0, 5).join(" OR ")}) (${functionalizeTerms(actionTerms).slice(0, 4).join(" OR ")})`;
+  ].filter(Boolean)) : [];
+  const broadQuery = actionTerms.length
+    ? `(${technicalTerms.slice(0, 4).join(" OR ")}) (${actionTerms.slice(0, 4).join(" OR ")})`
+    : technicalTerms.slice(0, 4).join(" OR ");
+  const englishQuery = englishHints(mainTerm)
+    .concat(shouldAddActionKeyword ? englishHints(actionTerm) : [])
+    .slice(0, 5)
+    .join(" ");
+  const functionalQuery = actionTerms.length
+    ? `(${functionalizeTerms(technicalTerms).slice(0, 5).join(" OR ")}) (${functionalizeTerms(actionTerms).slice(0, 4).join(" OR ")})`
+    : functionalizeTerms(technicalTerms).slice(0, 5).join(" OR ");
+  const usageSearchQueries: GeneratedSearchPlan["searchQueries"] = usagePart
+    ? [
+        {
+          id: "usage_specific",
+          label: "用途特許を探す",
+          query: `(${technicalTerms.slice(0, 3).join(" OR ")}) (${usagePart})`,
+          targetSites: ["google_patents", "j_platpat"],
+        },
+      ]
+    : [];
 
   return {
     summary: {
@@ -171,18 +197,20 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
         reason: "具体名だけでなく、特許で使われやすい広い機能表現でも検索するため。",
       })),
     ],
-    actionTerms: [
-      {
-        term: actionTerm,
-        examples: ["判定", "推定", "抽出", "識別"],
-        reason: "製品名ではなく処理動作から検索するため。",
-      },
-      {
-        term: outputTerm,
-        examples: ["警告", "報知", "出力", "提示"],
-        reason: "処理結果の出し方を広く拾うため。",
-      },
-    ],
+    actionTerms: shouldAddActionKeyword
+      ? [
+          {
+            term: actionTerm,
+            examples: ["判定", "推定", "抽出", "識別"],
+            reason: "製品名ではなく処理動作から検索するため。",
+          },
+          {
+            term: outputTerm,
+            examples: ["警告", "報知", "出力", "提示"],
+            reason: "処理結果の出し方を広く拾うため。",
+          },
+        ]
+      : [],
     searchAxes: [
       {
         axis: "技術構成",
@@ -190,23 +218,37 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
         recommendedTerms: technicalTerms.slice(0, 5),
         notes: "構成要素が似た特許を探します。",
       },
-      {
-        axis: "課題・効果",
-        queryIntent: input.problemToSolve || `${actionTerm} による課題解決の観点で探す`,
-        recommendedTerms: actionTerms.slice(0, 5),
-        notes: "目的や効果が近い特許を拾う軸です。",
-      },
-      {
-        axis: "用途",
-        queryIntent: `${industryTerms.join("、") || "利用業界"} に限定された用途特許を確認する`,
-        recommendedTerms: industryTerms.length ? industryTerms : ["作業現場"],
-        notes: "異業種の用途特許を見落とさないための軸です。",
-      },
+      ...(shouldAddActionKeyword || input.problemToSolve
+        ? [
+            {
+              axis: "課題・効果",
+              queryIntent: input.problemToSolve || `${actionTerm} による課題解決の観点で探す`,
+              recommendedTerms: actionTerms.slice(0, 5),
+              notes: "目的や効果が近い特許を拾う軸です。",
+            },
+          ]
+        : []),
+      ...(industryTerms.length
+        ? [
+            {
+              axis: "用途",
+              queryIntent: `${industryTerms.join("、")} に限定された用途特許を確認する`,
+              recommendedTerms: industryTerms,
+              notes: "異業種の用途特許を見落とさないための軸です。",
+            },
+          ]
+        : []),
     ],
     classificationHints: [
       {
         type: "FI_OR_F_TERM_VIEWPOINT",
-        viewpoint: unique([mainTerm, actionTerm, ...industryTerms, hasCamera ? "画像認識" : "", hasInspection ? "点検" : ""].filter(Boolean)).join("、"),
+        viewpoint: unique([
+          mainTerm,
+          shouldAddActionKeyword ? actionTerm : "",
+          ...industryTerms,
+          hasCamera ? "画像認識" : "",
+          hasInspection ? "点検" : "",
+        ].filter(Boolean)).join("、"),
         instruction:
           "J-PlatPat ではキーワード検索後に FI/F タームを確認し、目的・効果の観点で絞り込む。",
         confidence: "medium",
@@ -222,7 +264,7 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
       {
         id: "global_technical_en",
         label: "英語で海外も探す",
-        query: englishQuery || `${mainTerm} ${actionTerm}`,
+        query: englishQuery || mainTerm,
         targetSites: ["google_patents", "espacenet"],
       },
       {
@@ -231,12 +273,7 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
         query: functionalQuery,
         targetSites: ["google_patents", "j_platpat"],
       },
-      {
-        id: "usage_specific",
-        label: "用途特許を探す",
-        query: `(${technicalTerms.slice(0, 3).join(" OR ")}) (${usagePart})`,
-        targetSites: ["google_patents", "j_platpat"],
-      },
+      ...usageSearchQueries,
     ],
     checklist: [
       {
@@ -261,12 +298,48 @@ export function generateFallbackPlan(input: IdeaInput): GeneratedSearchPlan {
 }
 
 function extractImportantTerms(text: string): string[] {
+  const stopwords = [
+    "こと",
+    "もの",
+    "場所",
+    "場合",
+    "早期",
+    "効率化",
+    "もう一度",
+    "しゃべる",
+    "しゃべって",
+    "話す",
+    "話して",
+    "録音",
+    "文字起こし",
+    "テキスト",
+    "特許",
+    "検索",
+    "単語",
+    "キーワード",
+    "できる",
+    "したい",
+    "なるかも",
+  ];
+
   return text
     .replace(/[。、．，,]/g, " ")
-    .split(/\s|から|で|を|に|の|する|して|したい|できる|による|ため/g)
+    .split(/\s|から|で|を|に|の|する|して|したい|できる|による|ため|とし|として|けど|だから|それで|これは|あれは/g)
     .map((term) => term.trim())
     .filter((term) => term.length >= 2)
-    .filter((term) => !["こと", "もの", "場所", "場合", "早期", "効率化"].includes(term));
+    .filter((term) => !stopwords.includes(term));
+}
+
+function domainSpecificTerms(text: string): string[] {
+  const terms: string[] = [];
+  if (/アナログメーター|メータ|メーター/.test(text)) terms.push("アナログメーター");
+  if (/計器/.test(text)) terms.push("計器");
+  if (/LED/.test(text)) terms.push("LED", "光源");
+  if (/CCD/.test(text)) terms.push("CCD", "撮像素子");
+  if (/針/.test(text)) terms.push("針位置");
+  if (/読取|読み取り/.test(text)) terms.push("メーター読取");
+  if (/数値化/.test(text)) terms.push("数値化");
+  return terms;
 }
 
 function unique(values: string[]): string[] {
@@ -293,6 +366,16 @@ function englishHints(term: string): string[] {
     異常検出: ["anomaly detection", "abnormality detection"],
     点検: ["inspection"],
     インフラ点検: ["infrastructure inspection"],
+    LED: ["LED", "light source"],
+    CCD: ["CCD", "image sensor"],
+    光源: ["light source"],
+    撮像素子: ["image sensor"],
+    アナログメーター: ["analog meter", "analog gauge"],
+    計器: ["instrument", "gauge"],
+    針位置: ["needle position", "pointer position"],
+    メーター読取: ["meter reading", "gauge reading"],
+    数値化: ["digitization", "numeric conversion"],
+    "読取・数値化": ["meter reading", "digitization", "numeric conversion"],
     姿勢推定: ["pose estimation", "human pose estimation"],
     通知: ["notification", "alert"],
     報知手段: ["notification unit", "alert unit"],
