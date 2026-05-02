@@ -37,6 +37,7 @@ const initialAnalysisRequest: PatentAnalysisRequest = {
 };
 
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const appVersion = "0.6.0";
 
 function apiPath(path: string) {
   return `${appBasePath}${path}`;
@@ -60,6 +61,7 @@ type PatentSummaryCandidate = {
   assignee: string;
   abstract: string;
   jplatpatUrl: string;
+  kind?: "number" | "search";
 };
 
 export function PatentNaviApp() {
@@ -289,7 +291,7 @@ export function PatentNaviApp() {
           <div className="brand" aria-label="Patent Navi">
             <div className="brandMark" aria-hidden="true" />
             <div>
-              <strong>Patent Navi</strong>
+              <strong>Patent Navi <span className="versionBadge">Ver {appVersion}</span></strong>
               <span>会話からコア単語を抜き、特許検索へつなぐ</span>
             </div>
           </div>
@@ -540,23 +542,29 @@ function QuickSimplePanel(props: {
                       className="documentCard"
                       href={candidate.jplatpatUrl}
                       key={candidate.publicationNumber}
-                      title="J-PlatPatの番号照会で開く"
-                      onClick={(event) => openJPlatPatNumberInquiry(event, candidate)}
+                      title={candidate.kind === "search" ? "J-PlatPat検索へ進む" : "J-PlatPatの番号照会で開く"}
+                      onClick={(event) => openJPlatPatCandidate(event, candidate)}
                     >
                       <div>
                         <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
                         <h4>{candidate.title}</h4>
                         <p>{candidate.abstract}</p>
                         <small>{candidate.assignee}</small>
-                        <input
-                          aria-label={`${candidate.patentNumber} の番号`}
-                          className="documentNumberInput"
-                          readOnly
-                          value={candidate.patentNumber}
-                        />
-                        <em>クリックすると番号をコピーして、番号照会へ移動します。</em>
+                        {candidate.patentNumber ? (
+                          <>
+                            <input
+                              aria-label={`${candidate.patentNumber} の番号`}
+                              className="documentNumberInput"
+                              readOnly
+                              value={candidate.patentNumber}
+                            />
+                            <em>{getJPlatPatInquiryNumber(candidate.patentNumber)} をコピーして、番号照会へ移動します。</em>
+                          </>
+                        ) : (
+                          <em>検索式をコピーして、J-PlatPat検索へ移動します。</em>
+                        )}
                       </div>
-                      <strong>番号照会へ</strong>
+                      <strong>{candidate.kind === "search" ? "検索へ" : "番号照会へ"}</strong>
                     </a>
                   ))}
                 </div>
@@ -768,23 +776,29 @@ function QuickJudgementPanel(props: {
                       className="documentCard"
                       href={candidate.jplatpatUrl}
                       key={candidate.publicationNumber}
-                      title="J-PlatPatの番号照会で開く"
-                      onClick={(event) => openJPlatPatNumberInquiry(event, candidate)}
+                      title={candidate.kind === "search" ? "J-PlatPat検索へ進む" : "J-PlatPatの番号照会で開く"}
+                      onClick={(event) => openJPlatPatCandidate(event, candidate)}
                     >
                       <div>
                         <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
                         <h4>{candidate.title}</h4>
                         <p>{candidate.abstract}</p>
                         <small>{candidate.assignee}</small>
-                        <input
-                          aria-label={`${candidate.patentNumber} の番号`}
-                          className="documentNumberInput"
-                          readOnly
-                          value={candidate.patentNumber}
-                        />
-                        <em>クリックすると番号をコピーして、番号照会へ移動します。</em>
+                        {candidate.patentNumber ? (
+                          <>
+                            <input
+                              aria-label={`${candidate.patentNumber} の番号`}
+                              className="documentNumberInput"
+                              readOnly
+                              value={candidate.patentNumber}
+                            />
+                            <em>{getJPlatPatInquiryNumber(candidate.patentNumber)} をコピーして、番号照会へ移動します。</em>
+                          </>
+                        ) : (
+                          <em>検索式をコピーして、J-PlatPat検索へ移動します。</em>
+                        )}
                       </div>
-                      <strong>番号照会へ</strong>
+                      <strong>{candidate.kind === "search" ? "検索へ" : "番号照会へ"}</strong>
                     </a>
                 ))
               ) : (
@@ -1086,7 +1100,10 @@ function buildPatentSummaryCandidates(props: {
     if (pastedCandidates.length) return pastedCandidates;
   }
 
-  return buildKnownPatentCandidates(props);
+  const knownCandidates = buildKnownPatentCandidates(props);
+  if (knownCandidates.length) return knownCandidates;
+
+  return buildSearchNextStepCandidates(props);
 }
 
 function buildJPlatPatCandidateUrl(_query: string, patentNumber = "") {
@@ -1095,17 +1112,44 @@ function buildJPlatPatCandidateUrl(_query: string, patentNumber = "") {
     : "https://www.j-platpat.inpit.go.jp/?uri=/p0100";
 }
 
-function openJPlatPatNumberInquiry(
+function openJPlatPatCandidate(
   event: { preventDefault: () => void },
   candidate: PatentSummaryCandidate,
 ) {
   event.preventDefault();
+  copyTextForInquiry(candidate.patentNumber ? getJPlatPatInquiryNumber(candidate.patentNumber) : candidate.publicationNumber);
   const opened = window.open(candidate.jplatpatUrl, "_blank", "noopener,noreferrer");
-  void navigator.clipboard?.writeText(candidate.patentNumber).catch(() => undefined);
 
   if (!opened) {
     window.location.href = candidate.jplatpatUrl;
   }
+}
+
+function copyTextForInquiry(text: string) {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  } catch {
+    // Clipboard API is attempted below when available.
+  }
+
+  void navigator.clipboard?.writeText(text).catch(() => undefined);
+}
+
+function getJPlatPatInquiryNumber(patentNumber: string) {
+  return patentNumber
+    .replace(/^JP/i, "")
+    .replace(/^(?:特許|実用新案)(?:登録)?第?/, "")
+    .replace(/^(?:特開|特表|再表|実開)/, "")
+    .replace(/号$/, "")
+    .trim();
 }
 
 function extractPatentNumber(text: string) {
@@ -1192,6 +1236,37 @@ function buildKnownPatentCandidates(props: {
       jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特開2007-148850"),
     },
   ];
+}
+
+function buildSearchNextStepCandidates(props: {
+  plan: GeneratedSearchPlan;
+  narrowedQuery: string;
+  droppedTerms: string[];
+  resultLines: string[];
+}) {
+  const searchTerms = uniqueTermsForCandidate([
+    ...props.droppedTerms,
+    ...props.plan.keywords.map((keyword) => keyword.term),
+  ]).slice(0, 5);
+  const query = props.narrowedQuery || searchTerms.join(" OR ");
+  const axisLabel = searchTerms.length ? searchTerms.join(" / ") : props.plan.summary.title;
+
+  return [
+    {
+      publicationNumber: query,
+      patentNumber: "",
+      title: "J-PlatPatで候補文献を確認する",
+      assignee: "まだ文献番号は取得していません",
+      abstract:
+        `${axisLabel} の検索式をコピーしてJ-PlatPatへ移動します。結果一覧で文献番号が出たら、番号照会に進めます。`,
+      jplatpatUrl: buildJPlatPatCandidateUrl(query),
+      kind: "search" as const,
+    },
+  ];
+}
+
+function uniqueTermsForCandidate(terms: string[]) {
+  return [...new Set(terms.map((term) => term.trim()).filter(Boolean))];
 }
 
 function countOccurrences(text: string, term: string) {
