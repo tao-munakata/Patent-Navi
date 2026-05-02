@@ -36,6 +36,12 @@ const initialAnalysisRequest: PatentAnalysisRequest = {
   userConcern: "",
 };
 
+const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
+function apiPath(path: string) {
+  return `${appBasePath}${path}`;
+}
+
 type TabId = "overview" | "keywords" | "links" | "checklist";
 type PageMode = "quick" | "detail";
 type JPlatPatCountResult = {
@@ -140,7 +146,7 @@ export function PatentNaviApp() {
 
     setLoadingPlan(true);
     try {
-      const response = await fetch("/api/generate-plan", {
+      const response = await fetch(apiPath("/api/generate-plan"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -171,7 +177,7 @@ export function PatentNaviApp() {
     setMessage("");
     setLoadingAnalysis(true);
     try {
-      const response = await fetch("/api/analyze-patent", {
+      const response = await fetch(apiPath("/api/analyze-patent"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(analysisRequest),
@@ -193,7 +199,7 @@ export function PatentNaviApp() {
     if (!quiet) setMessage("");
     setLoadingJplatpatCount(true);
     try {
-      const response = await fetch("/api/jplatpat-count", {
+      const response = await fetch(apiPath("/api/jplatpat-count"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -317,7 +323,10 @@ export function PatentNaviApp() {
             resultLines={resultLines}
             loadingPlan={loadingPlan}
             loadingJplatpatCount={loadingJplatpatCount}
+            message={message}
+            error={error}
             onInputChange={(value) => updateInput("functionSummary", value)}
+            onGenerate={() => createPlan("quick")}
             onDropTerm={addDroppedTerm}
             onRemoveDroppedTerm={removeDroppedTerm}
           />
@@ -424,7 +433,10 @@ function QuickSimplePanel(props: {
   resultLines: string[];
   loadingPlan: boolean;
   loadingJplatpatCount: boolean;
+  message: string;
+  error: string;
   onInputChange: (value: string) => void;
+  onGenerate: () => void;
   onDropTerm: (term: string) => void;
   onRemoveDroppedTerm: (term: string) => void;
 }) {
@@ -453,6 +465,14 @@ function QuickSimplePanel(props: {
             required
             minHeight={190}
           />
+          <div className="actions">
+            <button className="primary" type="button" onClick={props.onGenerate} disabled={props.loadingPlan}>
+              {props.loadingPlan ? "分解中..." : "コア単語に分解する"}
+            </button>
+            {props.plan ? <span className="hint">入力後も自動で更新します。</span> : null}
+          </div>
+          {props.message ? <div className="notice">{props.message}</div> : null}
+          {props.error ? <div className="notice error">{props.error}</div> : null}
         </div>
       </section>
 
@@ -1048,8 +1068,7 @@ function buildPatentSummaryCandidates(props: {
   resultLines: string[];
 }): PatentSummaryCandidate[] {
   const pasted = props.resultLines
-    .filter((line) => !/検索結果|件/.test(line))
-    .slice(0, 3);
+    .filter((line) => !/検索結果|件/.test(line));
 
   if (pasted.length) {
     const pastedCandidates = pasted.flatMap((line, index) => {
@@ -1124,9 +1143,18 @@ function buildKnownPatentCandidates(props: {
     ...props.plan.keywords.map((keyword) => keyword.term),
   ].join(" ");
 
-  if (!/宗像\s?忠夫/.test(text)) return [];
+  if (!/(宗像\s?忠夫|テレジャパン|日豊通信|ドッドウエルビー)/.test(text)) return [];
 
   return [
+    {
+      publicationNumber: "特許第7653490",
+      patentNumber: "特許第7653490",
+      title: "認証プログラム、認証装置、及び認証システム",
+      assignee: "株式会社ドッドウエルビー・エム・エス / 発明者: 宗像 忠夫ほか",
+      abstract:
+        "携帯電話端末の電話番号を用いて認証し、コストを抑えながらセキュリティ性の向上を図る認証システムです。",
+      jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特許第7653490"),
+    },
     {
       publicationNumber: "特許第7271771",
       patentNumber: "特許第7271771",
@@ -1144,6 +1172,24 @@ function buildKnownPatentCandidates(props: {
       abstract:
         "鍵の利用予定と建物識別情報を対応付け、解錠要求信号に含まれる建物識別情報を照合して、鍵収納箱の解錠許可を出力する鍵管理装置です。",
       jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特開2024-004453"),
+    },
+    {
+      publicationNumber: "特許第4959180",
+      patentNumber: "特許第4959180",
+      title: "仲介装置サーバ及び更新情報取得システム",
+      assignee: "株式会社テレジャパン / 株式会社イーフォーシーリンク / 発明者: 宗像 忠夫ほか",
+      abstract:
+        "ウェブサイトの属性やURLを管理し、選択された掲載情報の更新確認に必要な情報を仲介する装置サーバです。",
+      jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特許第4959180"),
+    },
+    {
+      publicationNumber: "特開2007-148850",
+      patentNumber: "特開2007-148850",
+      title: "仲介装置サーバ及び更新情報取得システム",
+      assignee: "株式会社テレジャパン / 株式会社イーフォーシーリンク / 発明者: 宗像 忠夫ほか",
+      abstract:
+        "特許第4959180に対応する公開公報です。公開番号から原文の要約、請求項、経過情報を確認できます。",
+      jplatpatUrl: buildJPlatPatCandidateUrl(props.narrowedQuery, "特開2007-148850"),
     },
   ];
 }
