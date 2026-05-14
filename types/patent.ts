@@ -85,10 +85,24 @@ export type SearchLink = {
 export type PatentAnalysisRequest = {
   projectSummary: string;
   publicationNumber: string;
+  applicationNumber?: string;
   assignee: string;
   abstractText: string;
   claimText: string;
   userConcern: string;
+};
+
+export type JpoPatentDetail = {
+  applicationNumber: string;
+  title: string;
+  applicants: string[];
+  attorneys: string[];
+  filingDate: string;
+  publicationNumber: string;
+  registrationNumber: string;
+  registrationDate: string;
+  remainAccessCount: number;
+  rawData: unknown;
 };
 
 export type PatentAnalysis = {

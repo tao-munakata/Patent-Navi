@@ -5,6 +5,7 @@ import { buildResearchMarkdown } from "@/lib/markdown-export";
 import type {
   GeneratedSearchPlan,
   IdeaInput,
+  JpoPatentDetail,
   PatentAnalysis,
   PatentAnalysisRequest,
   SearchLink,
@@ -29,6 +30,7 @@ const exampleInput: IdeaInput = {
 const initialAnalysisRequest: PatentAnalysisRequest = {
   projectSummary: "",
   publicationNumber: "",
+  applicationNumber: "",
   assignee: "",
   abstractText: "",
   claimText:
@@ -74,6 +76,7 @@ export function PatentNaviApp() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [loadingJpo, setLoadingJpo] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [jplatpatResults, setJplatpatResults] = useState("");
@@ -192,6 +195,43 @@ export function PatentNaviApp() {
       setError(caught instanceof Error ? caught.message : "分析に失敗しました。");
     } finally {
       setLoadingAnalysis(false);
+    }
+  }
+
+  async function fetchJpoDetail() {
+    const appNum = (analysisRequest.applicationNumber ?? "").trim();
+    if (!appNum) { setError("出願番号（YYYY-NNNNNN）を入力してください。"); return; }
+    setError("");
+    setMessage("");
+    setLoadingJpo(true);
+    try {
+      const res = await fetch(apiPath("/api/jpo-patent"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patentNumber: appNum }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "JPO API エラー");
+      const detail: JpoPatentDetail = data.detail;
+      setAnalysisRequest((cur) => ({
+        ...cur,
+        publicationNumber: detail.publicationNumber || detail.registrationNumber || cur.publicationNumber,
+        assignee: detail.applicants.join("、") || cur.assignee,
+        abstractText: [
+          detail.title ? `【発明の名称】${detail.title}` : "",
+          detail.applicants.length ? `【出願人】${detail.applicants.join("、")}` : "",
+          detail.attorneys.length ? `【代理人】${detail.attorneys.join("、")}` : "",
+          detail.filingDate ? `【出願日】${detail.filingDate}` : "",
+          detail.publicationNumber ? `【公開番号】${detail.publicationNumber}` : "",
+          detail.registrationNumber ? `【特許番号】${detail.registrationNumber}` : "",
+          detail.registrationDate ? `【登録日】${detail.registrationDate}` : "",
+        ].filter(Boolean).join("\n"),
+      }));
+      setMessage(`特許庁APIから取得しました（残アクセス${detail.remainAccessCount}回）`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "JPO API エラー");
+    } finally {
+      setLoadingJpo(false);
     }
   }
 
@@ -411,10 +451,12 @@ export function PatentNaviApp() {
                 analysis={analysis}
                 analysisRequest={analysisRequest}
                 loadingAnalysis={loadingAnalysis}
+                loadingJpo={loadingJpo}
                 onTab={setActiveTab}
                 onCopy={copyText}
                 onAnalysisChange={updateAnalysis}
                 onAnalyze={analyzePatent}
+                onFetchJpo={fetchJpoDetail}
                 onExport={exportMarkdown}
               />
             </section>
@@ -852,10 +894,12 @@ function DetailResearchPanel(props: {
   analysis: PatentAnalysis | null;
   analysisRequest: PatentAnalysisRequest;
   loadingAnalysis: boolean;
+  loadingJpo: boolean;
   onTab: (id: TabId) => void;
   onCopy: (text: string) => void;
   onAnalysisChange: <K extends keyof PatentAnalysisRequest>(key: K, value: PatentAnalysisRequest[K]) => void;
   onAnalyze: () => void;
+  onFetchJpo: () => void;
   onExport: () => void;
 }) {
   return (
@@ -892,6 +936,24 @@ function DetailResearchPanel(props: {
               onChange={(value) => props.onAnalysisChange("publicationNumber", value)}
               placeholder="例: JP2024-000000"
             />
+            <TextField
+              id="jpoApplicationNumber"
+              label="出願番号（特許庁API取得用）"
+              value={props.analysisRequest.applicationNumber ?? ""}
+              onChange={(value) => props.onAnalysisChange("applicationNumber", value)}
+              placeholder="例: 2022-069388（J-PlatPatの書誌欄に記載）"
+            />
+            <div className="actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={props.onFetchJpo}
+                disabled={props.loadingJpo || !(props.analysisRequest.applicationNumber ?? "").trim()}
+              >
+                {props.loadingJpo ? "取得中..." : "特許庁APIで書誌取得"}
+              </button>
+              <span className="hint">出願人・タイトル・公開番号を自動入力します</span>
+            </div>
             <TextField
               id="assignee"
               label="出願人"
