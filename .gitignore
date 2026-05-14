@@ -6,3 +6,11 @@ out
 .DS_Store
 npm-debug.log*
 tsconfig.tsbuildinfo
+
+# SQLite DB (ローカルデータ)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# 調査用スクリーンショット
+scripts/*.png

@@ -4,60 +4,100 @@
 
 ## 概要
 
-事業・製品アイデアから関連特許を探すための一次調査支援サイトの設計資料とプロトタイプです。
+事業・製品アイデアから関連特許を探すための一次調査支援サイトです。
 
-## 成果物
+## 主な機能
 
-- `docs/requirements.md`: 要件定義
-- `docs/ui-design.md`: 画面設計
-- `docs/ai-json-schema.md`: AI 出力 JSON スキーマ
-- `docs/search-link-spec.md`: 検索リンク生成仕様
-- `docs/implementation-plan.md`: 実装計画
-- `docs/phase-1-scope.md`: Phase 1 の確定スコープ
-- `prototype/index.html`: 静的 MVP プロトタイプ
+### AIによる調査プラン生成
+- ひらめきテキストから特許調査キーワードを自動分解
+- J-PlatPat の絞り込み件数をリアルタイム表示
 
-## プロトタイプ
+### 特許番号・書誌情報の自動取得
+- **J-PlatPat 自動スクレイピング**: 登録番号（特許第XXXXXXX）から出願番号を自動取得
+  - Playwright によるヘッドレスブラウザ操作
+  - `/api/scrape-jplatpat` エンドポイント
+- **特許庁API連携**: 出願番号から書誌情報（発明の名称・出願人・出願日・登録日）を取得
+  - ip-data.jpo.go.jp の `app_progress` エンドポイントを使用
+  - OAuth2 トークンキャッシュ（1時間TTL）
+  - `/api/jpo-patent` エンドポイント
 
-ブラウザで以下のファイルを開くと、入力、調査プラン表示、検索リンク生成、請求項分析メモ、Markdown 出力の流れを確認できます。
+### 保存済み特許DB
+- 取得した特許情報を SQLite に永続保存（`data/patents.db`）
+- 保存済み特許一覧を画面に常時表示
+- 公開・登録番号クリック → 番号をクリップボードにコピー＆J-PlatPat を開く
+- `/api/patents` エンドポイント（GET: 一覧 / POST: 保存）
 
-```txt
-prototype/index.html
-```
+### 特許候補テーブル
+- 候補特許の No / 公開・登録番号 / 発明の名称 / 出願人 / 状態 / 特許庁API を一覧表示
+- 「自動取得」ボタン: スクレイプ → JPO API → DB保存 を一括実行
+- 「手動入力」: 出願番号を手入力して JPO API 取得
 
-## Phase 2 アプリ
-
-Next.js + TypeScript 版を追加しました。
+## セットアップ
 
 ```bash
 npm install
-npm run dev -- -p 3000
-```
-
-起動後、以下を開きます。
-
-```txt
-http://localhost:3000
-```
-
-調査プラン生成と特許分析メモは、`OPENAI_API_KEY` がある場合に OpenAI API を使い、未設定の場合はフォールバック生成で動きます。
-
-```bash
+npx playwright install chromium
 cp .env.example .env.local
 ```
 
-`.env.local` に `OPENAI_API_KEY` を設定してください。
+`.env.local` に以下を設定:
+
+```
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+JPO_API_ID=          # 特許庁API利用者ID
+JPO_API_PASSWORD=    # 特許庁API パスワード
+```
+
+## 起動
+
+```bash
+npm run dev -- -p 3002
+```
+
+`http://localhost:3002` を開く。
+
+## API エンドポイント
+
+| パス | メソッド | 説明 |
+|------|---------|------|
+| `/api/scrape-jplatpat` | POST | J-PlatPat から出願番号を自動取得 |
+| `/api/jpo-patent` | POST | 特許庁API で書誌情報を取得 |
+| `/api/patents` | GET | 保存済み特許一覧を返す |
+| `/api/patents` | POST | 特許情報を DB に保存（upsert） |
+| `/api/analyze-patent` | POST | AI による特許分析 |
+| `/api/generate-plan` | POST | AI による調査プラン生成 |
+| `/api/jplatpat-count` | POST | J-PlatPat 件数取得 |
+
+## ファイル構成（主要）
+
+```
+app/api/
+  scrape-jplatpat/route.ts   # J-PlatPat スクレイパー
+  jpo-patent/route.ts        # 特許庁API ラッパー
+  patents/route.ts            # 保存済み特許 CRUD
+components/
+  PatentNaviApp.tsx           # メインアプリ
+  PatentCandidateTable.tsx    # 候補テーブル（自動取得ボタン付き）
+  SavedPatentsTable.tsx       # DB保存済み特許一覧
+lib/
+  jpo-api.ts                  # 特許庁API クライアント
+  db.ts                       # SQLite 接続・スキーマ
+data/
+  patents.db                  # SQLite DB（gitignore）
+scripts/
+  scrape-jplatpat.js          # 調査用スクリプト
+```
 
 ## 検証
 
 ```bash
 npm run typecheck
 npm run build
-npm audit --audit-level=moderate
 ```
 
-## 次の実装候補
+## J-PlatPat について
 
-1. AI 出力の追加バリデーションを入れる
-2. 調査履歴のブラウザ内保存を追加する
-3. 利用規約、プライバシーポリシー、免責ページを追加する
-4. API キー未設定時の画面表示をより明確にする
+J-PlatPat は JavaScript SPA のため、直接ドキュメントURLが存在しません。
+番号クリック時は登録番号をクリップボードにコピー＆番号照会ページ（`/p0000`）を開きます。
+J-PlatPat 上で番号を貼り付けて照会してください。

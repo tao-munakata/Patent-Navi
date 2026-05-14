@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildResearchMarkdown } from "@/lib/markdown-export";
 import { PatentCandidateTable } from "@/components/PatentCandidateTable";
+import { SavedPatentsTable } from "@/components/SavedPatentsTable";
 import type {
   GeneratedSearchPlan,
   IdeaInput,
@@ -577,6 +578,15 @@ function QuickSimplePanel(props: {
           {props.hitCount <= 10 && props.hitCount > 0 && documentCandidates.length ? (
             <PatentCandidateTable candidates={documentCandidates} />
           ) : null}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panelHeader">
+          <h2>保存済み特許一覧</h2>
+        </div>
+        <div className="panelBody">
+          <SavedPatentsTable />
         </div>
       </section>
     </div>
