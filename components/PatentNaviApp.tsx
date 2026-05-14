@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { buildResearchMarkdown } from "@/lib/markdown-export";
+import { PatentCandidateTable } from "@/components/PatentCandidateTable";
 import type {
   GeneratedSearchPlan,
   IdeaInput,
@@ -573,49 +574,8 @@ function QuickSimplePanel(props: {
 
           {props.narrowedQuery ? <div className="query">{props.narrowedQuery}</div> : null}
 
-          {props.hitCount <= 10 && props.hitCount > 0 ? (
-            <div className="overviewPanel">
-              <span className="riskBadge riskLow">10件以下</span>
-              <h3>文献・要約</h3>
-              {documentCandidates.length ? (
-                <div className="documentList">
-                  {documentCandidates.map((candidate) => (
-                    <a
-                      className="documentCard"
-                      href={candidate.jplatpatUrl}
-                      key={candidate.publicationNumber}
-                      title={candidate.kind === "search" ? "J-PlatPat検索へ進む" : "J-PlatPatの番号照会で開く"}
-                      onClick={(event) => openJPlatPatCandidate(event, candidate)}
-                    >
-                      <div>
-                        <span className="badge badgeNeutral">{candidate.publicationNumber}</span>
-                        <h4>{candidate.title}</h4>
-                        <p>{candidate.abstract}</p>
-                        <small>{candidate.assignee}</small>
-                        {candidate.patentNumber ? (
-                          <>
-                            <input
-                              aria-label={`${candidate.patentNumber} の番号`}
-                              className="documentNumberInput"
-                              readOnly
-                              value={candidate.patentNumber}
-                            />
-                            <em>{getJPlatPatInquiryNumber(candidate.patentNumber)} をコピーして、番号照会へ移動します。</em>
-                          </>
-                        ) : (
-                          <em>検索式をコピーして、J-PlatPat検索へ移動します。</em>
-                        )}
-                      </div>
-                      <strong>{candidate.kind === "search" ? "検索へ" : "番号照会へ"}</strong>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <div className="documentEmpty">
-                  J-PlatPatの結果一覧から、文献番号を含む行を貼り付けるとここに表示します。
-                </div>
-              )}
-            </div>
+          {props.hitCount <= 10 && props.hitCount > 0 && documentCandidates.length ? (
+            <PatentCandidateTable candidates={documentCandidates} />
           ) : null}
         </div>
       </section>
